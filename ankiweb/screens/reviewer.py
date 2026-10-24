@@ -209,13 +209,18 @@ def reviewer_page_body() -> str:
         "  if(window.confirm('Delete this note?')){window.pycmd('deletenote');}"
         "}"
         "window.ankiwebDeleteNote=ankiwebDeleteNote;"
-        # fork: like desktop Anki, give the card body the nightMode/night_mode classes so note
-        # types' own night styles apply (reviewer.js resets body.className for every card)
-        "function _night(){if(document.documentElement.classList.contains('night-mode'))"
-        "{document.body.classList.add('nightMode','night_mode');}}"
+        # fork: like desktop Anki, put nightMode/night_mode into the card's body classes so note
+        # types' own `.nightMode ...` styles apply. It has to go into the bodyclass argument:
+        # reviewer.js assigns document.body.className = bodyclass asynchronously, after the
+        # card has rendered, which would wipe any class added here directly.
+        "function _nightClass(c){"
+        "if(!document.documentElement.classList.contains('night-mode'))return c;"
+        "c=String(c||'');return /(^|\\s)nightMode(\\s|$)/.test(c)?c:(c+' nightMode night_mode').trim();}"
         "b.registerCalls({"
-        "_showQuestion:function(){_side='question';var r=window._showQuestion.apply(window,arguments);_night();return r;},"
-        "_showAnswer:function(){_side='answer';var r=window._showAnswer.apply(window,arguments);_night();return r;},"
+        "_showQuestion:function(q,a,bodyclass){_side='question';"
+        "return window._showQuestion.call(window,q,a,_nightClass(bodyclass));},"
+        "_showAnswer:function(a,bodyclass){_side='answer';"
+        "return window._showAnswer.call(window,a,bodyclass===undefined?bodyclass:_nightClass(bodyclass));},"
         "ankiwebSetAnswerBar:function(h){"
         "document.getElementById('ankiweb-answer').innerHTML=String(h);},"
         "ankiwebPlayAudio:function(files){return ankiwebPlayAudio(files);},"
