@@ -43,6 +43,8 @@ class Settings:
     # Optional web-UI password. Empty = no gate (open, the default). When set, the web app
     # requires a /login session cookie; the AnkiConnect server keeps its own apiKey.
     password: str = ""
+    # Fork: how long a login stays valid (days). Changing the password logs everyone out.
+    session_days: int = 90
     # Fork: sync with an Anki sync server (self-hosted or AnkiWeb). Disabled unless configured.
     sync: SyncConfig = SyncConfig()
 
@@ -59,5 +61,6 @@ class Settings:
             source_url=os.environ.get("ANKIWEB_SOURCE_URL", ""),
             lang=os.environ.get("ANKIWEB_LANG", ""),
             password=os.environ.get("ANKIWEB_PASSWORD", ""),
+            session_days=int(os.environ.get("ANKIWEB_SESSION_DAYS", "90") or 90),
             sync=SyncConfig.from_env(),
         )

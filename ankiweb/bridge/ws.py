@@ -1,10 +1,12 @@
 from __future__ import annotations
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ankiweb.config import host_allowed
-from ankiweb.auth import COOKIE, cookie_ok
+from ankiweb.auth import COOKIE, Authenticator, origin_ok
 
 
-def build_router(get_hub, allowed_hosts=(), password="") -> APIRouter:
+def build_router(get_hub, allowed_hosts=(), auth: Authenticator | str | None = None) -> APIRouter:
+    if not isinstance(auth, Authenticator):  # legacy: a plain password (or none)
+        auth = Authenticator(auth or "")
     router = APIRouter()
 
     @router.websocket("/ws")
@@ -14,7 +16,10 @@ def build_router(get_hub, allowed_hosts=(), password="") -> APIRouter:
         if not host_allowed(host, allowed_hosts):
             await websocket.close(code=1008)
             return
-        if not cookie_ok(websocket.cookies.get(COOKIE), password):
+        if not auth.verify(websocket.cookies.get(COOKIE)):
+            await websocket.close(code=1008)
+            return
+        if not origin_ok(websocket.headers):
             await websocket.close(code=1008)
             return
         hub = get_hub()

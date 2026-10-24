@@ -8,12 +8,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
 from ankiweb.config import Settings, host_allowed
-from ankiweb.auth import COOKIE, auth_token, cookie_ok, password_ok
+from ankiweb.auth import (COOKIE, OPEN_PATHS, Authenticator, LoginLimiter, client_ip, is_https,
+                          password_ok)
 
 
-def _login_html(error: bool = False) -> str:
+def _login_html(error: bool = False, blocked: bool = False) -> str:
     """Self-contained login page (no /_anki assets, so it works before authentication)."""
     err = "<p style='color:#c0392b;margin:0 0 12px'>密码错误 / Wrong password</p>" if error else ""
+    if blocked:
+        err = ("<p style='color:#c0392b;margin:0 0 12px'>尝试次数过多，请稍后再试<br>"
+               "Too many attempts, try again later</p>")
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -82,6 +86,10 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
                 await svc.close()
 
     app = FastAPI(title="ankiweb", lifespan=lifespan)
+    auth = Authenticator(settings.password, settings.collection_path.parent / "auth_secret",
+                         settings.session_days)
+    limiter = LoginLimiter()
+    app.state.auth = auth
 
     async def host_guard(request, call_next):
         host = request.headers.get("host", "")
@@ -94,9 +102,13 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
     async def auth_guard(request, call_next):
         # Open by default; only gates when ANKIWEB_PASSWORD is set. /login, /logout, /healthz
         # stay reachable so an unauthenticated user can reach the login form.
-        if settings.password and request.url.path not in ("/login", "/logout", "/healthz"):
-            if not cookie_ok(request.cookies.get(COOKIE), settings.password):
-                return RedirectResponse("/login", status_code=303)
+        if auth.enabled and request.url.path not in OPEN_PATHS:
+            if not auth.verify(request.cookies.get(COOKIE)):
+                # pages -> login form; assets / RPC / form posts -> a plain 401
+                if request.method == "GET" and not request.url.path.startswith(
+                        ("/_anki/", "/_app/", "/shell/")):
+                    return RedirectResponse("/login", status_code=303)
+                return PlainTextResponse("unauthorized", status_code=401)
         return await call_next(request)
 
     app.add_middleware(BaseHTTPMiddleware, dispatch=auth_guard)
@@ -113,18 +125,24 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
 
     @app.post("/login")
     async def login_submit(request: Request):
+        ip = client_ip(request)
+        if limiter.blocked(ip):
+            return HTMLResponse(_login_html(blocked=True), status_code=429)
         form = await request.form()
-        if settings.password and password_ok(form.get("password", ""), settings.password):
+        if auth.enabled and password_ok(form.get("password", ""), settings.password):
+            limiter.success(ip)
             resp = RedirectResponse("/", status_code=303)
-            resp.set_cookie(COOKIE, auth_token(settings.password),
-                            httponly=True, samesite="lax", max_age=30 * 86400)
+            resp.set_cookie(COOKIE, auth.issue(), httponly=True, samesite="lax",
+                            secure=is_https(request), max_age=settings.session_days * 86400)
             return resp
+        limiter.failure(ip)
+        await asyncio.sleep(0.5)  # slow down guessing a little more
         return HTMLResponse(_login_html(error=True), status_code=401)
 
     @app.get("/logout")
-    def logout():
+    def logout(request: Request):
         resp = RedirectResponse("/login", status_code=303)
-        resp.delete_cookie(COOKIE)
+        resp.delete_cookie(COOKIE, httponly=True, samesite="lax", secure=is_https(request))
         return resp
 
     static_dir = settings.shell_dir / "static"
@@ -133,7 +151,7 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
 
     app.include_router(build_assets_router(settings.assets_dir))       # GET  /_anki/{path}
     app.include_router(build_rpc_router(lambda: app.state.service, lambda: app.state.hub))    # POST /_anki/{method}
-    app.include_router(build_ws_router(lambda: app.state.hub, settings.allowed_hosts, settings.password))  # WS /ws
+    app.include_router(build_ws_router(lambda: app.state.hub, settings.allowed_hosts, auth))  # WS /ws
     app.include_router(build_screen_router(lambda: app.state.service, lambda: app.state.notifier))  # GET / + /notify
     app.include_router(build_sveltekit_router(settings.assets_dir))     # GET  /graphs, /_app/{path}, /favicon.ico
     app.include_router(build_media_router(lambda: app.state.service))  # GET  /{path} — LAST

@@ -122,6 +122,7 @@ All settings have safe localhost defaults; override via environment variables:
 | `ANKIWEB_SYNC_MEDIA` | `1` | Also sync media files (`0` to turn off). |
 | `ANKIWEB_SYNC_INTERVAL` | `600` | Seconds between background syncs (`0` = only on startup / on demand). |
 | `ANKIWEB_SYNC_DEBOUNCE` | `60` | Auto-sync this many seconds after the last local change (`0` = off). |
+| `ANKIWEB_SESSION_DAYS` | `90` | How long a login stays valid. |
 | `ANKIWEB_SOURCE_URL` | *(empty)* | AGPL §13 Corresponding-Source location for this deployment, shown on the `/about` page (only relevant if you run it as a public network service). |
 
 **`ankiconnect.json`** (optional) lives next to the collection file and uses AnkiConnect's
@@ -169,10 +170,22 @@ password, set `ANKIWEB_PASSWORD`:
 ANKIWEB_PASSWORD=mysecret conda run -n ankiweb python -m ankiweb
 ```
 
-Visitors then get a `/login` page; the correct password sets an httponly session cookie and
-unlocks the UI (and the `/ws` bridge). `/logout` clears it. This gates the **web app only**;
-the AnkiConnect HTTP API (port 8765) is controlled separately by `ANKIWEB_AC_KEY`. It's a
-light gate for LAN use, not a hardened auth system — serve over HTTPS if it matters.
+Visitors then get a `/login` page. The correct password sets a session cookie and unlocks the
+UI (and the `/ws` bridge). `/logout` clears it. This gates the **web app only**; the
+AnkiConnect HTTP API (port 8765) is controlled separately by `ANKIWEB_AC_KEY`.
+
+Fork hardening, so it's reasonable to expose behind an HTTPS reverse proxy:
+- The cookie is a signed, expiring token (`ANKIWEB_SESSION_DAYS`, default 90). Its key comes from
+  a random secret in `<collection dir>/auth_secret` (mode 0600) plus the password. **Changing the
+  password, or deleting `auth_secret`, logs out every device.**
+- Cookies are `HttpOnly`, `SameSite=Lax` and `Secure` over HTTPS. HTTPS is detected directly or
+  via `X-Forwarded-Proto` from a proxy on localhost.
+- Failed logins are rate-limited: 5 per client IP and 30 overall per 15 minutes. Behind a local
+  proxy the client IP comes from `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For`.
+- The WebSocket bridge rejects cross-origin connections.
+- Unauthenticated asset/RPC/POST requests get a plain `401`; pages redirect to `/login`.
+
+Use a long random password. This is still a single shared password, not a user system.
 
 ### Sync
 
