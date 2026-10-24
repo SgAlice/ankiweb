@@ -33,6 +33,8 @@ class CollectionService:
         self._lock = asyncio.Lock()
         self._col: Collection | None = None
         self._subscribers: list = []
+        # Fork: SyncManager attached by create_app's lifespan (None until then / in bare tests)
+        self.sync = None
 
     @property
     def settings(self):
@@ -112,6 +114,15 @@ class CollectionService:
         fn = getattr(col._backend, f"{method}_raw")
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self._aux_executor, lambda: fn(data))
+
+    async def run_concurrent(self, fn: Callable[[Collection], T]) -> T:
+        """Run fn(col) on the aux pool, beside the main worker. Only for backend calls that
+        are safe concurrently (media sync status polling, aborts)."""
+        col = self._col
+        if col is None:
+            raise RuntimeError("collection not open")
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self._aux_executor, lambda: fn(col))
 
     def subscribe(self, cb) -> None:
         """cb(changes, initiator) — called after a mutating op broadcasts changes."""

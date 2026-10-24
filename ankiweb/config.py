@@ -3,6 +3,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from ankiweb.sync import SyncConfig
+
 _BASE_HOST_PREFIXES = ("127.0.0.1:", "localhost:", "[::1]:")
 _BASE_HOSTS = ("127.0.0.1", "localhost", "testserver", "[::1]")
 
@@ -41,6 +43,8 @@ class Settings:
     # Optional web-UI password. Empty = no gate (open, the default). When set, the web app
     # requires a /login session cookie; the AnkiConnect server keeps its own apiKey.
     password: str = ""
+    # Fork: sync with an Anki sync server (self-hosted or AnkiWeb). Disabled unless configured.
+    sync: SyncConfig = SyncConfig()
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -55,4 +59,5 @@ class Settings:
             source_url=os.environ.get("ANKIWEB_SOURCE_URL", ""),
             lang=os.environ.get("ANKIWEB_LANG", ""),
             password=os.environ.get("ANKIWEB_PASSWORD", ""),
+            sync=SyncConfig.from_env(),
         )

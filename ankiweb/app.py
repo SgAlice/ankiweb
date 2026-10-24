@@ -1,5 +1,6 @@
 from __future__ import annotations
 import html
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +37,7 @@ from ankiweb.anki_rpc import build_router as build_rpc_router
 from ankiweb.bridge.ws import build_router as build_ws_router
 from ankiweb.screens.routes import build_screen_router, register_screen_handlers
 from ankiweb.notifier import NotifierState
+from ankiweb.sync import SyncManager
 
 
 def create_app(settings: Settings | None = None, service: CollectionService | None = None,
@@ -57,9 +59,25 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
         app.state.notifier = notifier if notifier is not None else NotifierState(
             settings.collection_path.parent / "notify.json")
         register_screen_handlers(svc, h)
+        # Fork: sync with the configured Anki sync server (no-op when not configured).
+        sync_task = None
+        owns_sync = svc.sync is None
+        if owns_sync:
+            svc.sync = SyncManager(svc, settings.sync, hub=h)
+            svc.subscribe(lambda flags, initiator: svc.sync.note_local_change())
+            if svc.sync.enabled:
+                sync_task = asyncio.create_task(svc.sync.run_periodic())
         try:
             yield
         finally:
+            if owns_sync:
+                if sync_task is not None:
+                    sync_task.cancel()
+                    try:
+                        await sync_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                await svc.sync.close()
             if owns:
                 await svc.close()
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import tempfile
 from fastapi import APIRouter, Form, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
 _MIME_EXT = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif",
@@ -24,6 +24,7 @@ from ankiweb.screens.fields import render_fields_html, make_fields_handler
 from ankiweb.screens.card_layout import render_card_layout_html, make_card_layout_handler
 from ankiweb.screens.tools import render_tools_html, make_tools_handler
 from ankiweb.screens.notetypes import render_notetypes_html, make_notetypes_handler
+from ankiweb.screens.sync_page import render_sync_html
 from ankiweb.screens.notify import render_notify_html, config_from_form, header_safe
 
 
@@ -34,8 +35,44 @@ def build_screen_router(get_service, get_notifier=None) -> APIRouter:
     @router.get("/deckbrowser", response_class=HTMLResponse)
     async def deckbrowser_page():
         service = get_service()
+        if service.sync is not None:
+            # opening the app should show what other devices did: pull first if stale
+            await service.sync.sync_if_stale(max_age=60)
         body = await service.run(render_deckbrowser_html)
         return HTMLResponse(render_page("deckbrowser", body, ["css/deckbrowser.css"]))
+
+    # --- fork: sync -------------------------------------------------------------------
+    @router.get("/sync", response_class=HTMLResponse)
+    async def sync_page():
+        return HTMLResponse(render_page("sync", render_sync_html(get_service().sync)))
+
+    @router.get("/sync/status")
+    async def sync_status():
+        mgr = get_service().sync
+        return JSONResponse(mgr.status() if mgr is not None else {"enabled": False})
+
+    @router.post("/sync")
+    async def sync_now():
+        mgr = get_service().sync
+        if mgr is None:
+            return JSONResponse({"enabled": False, "changed": False})
+        return JSONResponse(await mgr.sync("manual"))
+
+    @router.post("/sync/recheck")
+    async def sync_recheck():
+        mgr = get_service().sync
+        if mgr is None:
+            return JSONResponse({"enabled": False, "changed": False})
+        return JSONResponse(await mgr.recheck())
+
+    @router.post("/sync/full")
+    async def sync_full(direction: str):
+        mgr = get_service().sync
+        if mgr is None:
+            return JSONResponse({"enabled": False, "changed": False})
+        if direction not in ("upload", "download"):
+            return JSONResponse({"error": "direction must be upload|download"}, status_code=400)
+        return JSONResponse(await mgr.full_sync(upload=direction == "upload"))
 
     @router.get("/overview", response_class=HTMLResponse)
     async def overview_page():

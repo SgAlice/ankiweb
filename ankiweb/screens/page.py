@@ -3,6 +3,7 @@ import json
 from typing import Sequence
 
 from ankiweb.i18n import tr
+from ankiweb.screens.sync_page import toolbar_sync_html
 
 # Base dark theme for the server-rendered screens. bootstrap.js adds the
 # `night-mode` class to <html> when the persisted preference (or #night hash) is set.
@@ -53,6 +54,7 @@ def _toolbar_html() -> str:
         f"<a href='/add'>{tr.actions_add()}</a>"
         f"<a href='/browse'>{tr.qt_misc_browse()}</a>"
         f"<a href='/graphs'>{tr.qt_misc_stats()}</a>"
+        + toolbar_sync_html() +
         f"<a href='/preferences'>{tr.preferences_preferences()}</a>"
         # qt_accel_tools is "&Tools" (menu accelerator); strip the & for a clean label.
         f"<a href='/tools'>{tr.qt_accel_tools().replace('&', '')}</a>"

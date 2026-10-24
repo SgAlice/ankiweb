@@ -59,4 +59,13 @@ async def load_profile(rt, name=None):
 
 @action("sync", params=SyncParams, summary="Synchronize the collection")
 async def sync(rt):
-    raise Exception("sync is not supported by ankiweb")
+    # Fork: sync through the web app's SyncManager (configured via ANKIWEB_SYNC_*).
+    mgr = getattr(rt.service, "sync", None)
+    if mgr is None or not mgr.enabled:
+        raise Exception("sync is not configured (set ANKIWEB_SYNC_ENDPOINT / ANKIWEB_SYNC_USER)")
+    st = await mgr.sync("ankiconnect")
+    if st["state"] == "conflict":
+        raise Exception("full sync required: resolve it on the web /sync page")
+    if st["state"] == "error":
+        raise Exception(st["last_error"] or "sync failed")
+    return None

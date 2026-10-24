@@ -1,5 +1,11 @@
 # ankiweb
 
+> **Fork ([SgAlice/ankiweb](https://github.com/SgAlice/ankiweb)) of
+> [aitsc/ankiweb](https://github.com/aitsc/ankiweb).** It adds:
+> - **Anki 26.x** (pinned `anki==26.9.3`; see `UPSTREAM.md` → *26.x port notes*)
+> - **Sync** with an Anki sync server (self-hosted `anki.syncserver` or AnkiWeb). The web app
+>   becomes one more sync client next to desktop/mobile Anki. See **Sync** below.
+
 > ⚠️ **Unofficial, personal, single-user project — not affiliated with Anki/Ankitects.**
 > This is an independent, community browser port of [Anki](https://apps.ankiweb.net),
 > intended to be run by **one user on their own machine**. It is **NOT** affiliated with,
@@ -19,7 +25,7 @@ build** and bridges it to the `anki` backend; the Qt-only dialogs (overview, cus
 filtered-deck, export) are rebuilt as small server-rendered pages.
 
 **Scope:** everything in the desktop study/edit/manage flow + the AnkiConnect API.
-**Out of scope (by design):** sync (AnkiWeb) and add-ons/plugins.
+**Out of scope (by design):** add-ons/plugins. (Upstream also left out sync; this fork adds it.)
 
 ---
 
@@ -111,6 +117,11 @@ All settings have safe localhost defaults; override via environment variables:
 | `ANKIWEB_IMPORT_TMP_DIR` | `<collection dir>/import-tmp` | Where uploaded import/image files are staged before the backend reads them. |
 | `ANKIWEB_LANG` | *(empty → English)* | UI language, an Anki locale code (e.g. `zh-CN`, `ja`, `de`, `fr`). Chosen at startup — there is no in-app switcher; changing it means changing this var and restarting. See **Language** below. |
 | `ANKIWEB_PASSWORD` | *(empty → no password)* | If set, the web UI requires this password (a `/login` page sets a session cookie). Empty = open, the default. The AnkiConnect API keeps its own `ANKIWEB_AC_KEY`. |
+| `ANKIWEB_SYNC_ENDPOINT` | *(empty → sync off)* | Sync server URL, the same one you'd enter in desktop Anki (e.g. `http://127.0.0.1:8090/`). See **Sync**. |
+| `ANKIWEB_SYNC_USER` / `ANKIWEB_SYNC_PASSWORD` | *(empty)* | Sync account. |
+| `ANKIWEB_SYNC_MEDIA` | `1` | Also sync media files (`0` to turn off). |
+| `ANKIWEB_SYNC_INTERVAL` | `600` | Seconds between background syncs (`0` = only on startup / on demand). |
+| `ANKIWEB_SYNC_DEBOUNCE` | `60` | Auto-sync this many seconds after the last local change (`0` = off). |
 | `ANKIWEB_SOURCE_URL` | *(empty)* | AGPL §13 Corresponding-Source location for this deployment, shown on the `/about` page (only relevant if you run it as a public network service). |
 
 **`ankiconnect.json`** (optional) lives next to the collection file and uses AnkiConnect's
@@ -162,6 +173,31 @@ Visitors then get a `/login` page; the correct password sets an httponly session
 unlocks the UI (and the `/ws` bridge). `/logout` clears it. This gates the **web app only**;
 the AnkiConnect HTTP API (port 8765) is controlled separately by `ANKIWEB_AC_KEY`. It's a
 light gate for LAN use, not a hardened auth system — serve over HTTPS if it matters.
+
+### Sync
+
+Fork addition. With `ANKIWEB_SYNC_ENDPOINT` + `ANKIWEB_SYNC_USER` set, the web app syncs its
+collection with the server through Anki's own sync code, exactly like another desktop client:
+
+```bash
+ANKIWEB_SYNC_ENDPOINT=http://127.0.0.1:8090/ ANKIWEB_SYNC_USER=me ANKIWEB_SYNC_PASSWORD=... \
+  python -m ankiweb
+```
+
+- **When:** at startup; when the home screen opens and the last sync is over a minute old;
+  `ANKIWEB_SYNC_DEBOUNCE` s after your last change (e.g. after a review session); every
+  `ANKIWEB_SYNC_INTERVAL` s; and from the toolbar **Sync** button. The dot next to it is green
+  (synced), orange (local changes not yet synced), blue (syncing) or red (error / needs a choice).
+- **First run:** an empty web collection is downloaded from the server automatically.
+- **Full sync:** when Anki needs a one-way sync (e.g. a note type was changed on both sides), the
+  web app never picks a side on its own. Open `/sync` and choose **Download** (server replaces the
+  web copy) or **Upload** (web copy replaces the server). A backup (`<collection dir>/backups/`)
+  is written before every download.
+- **Media** syncs in the background after each collection sync.
+- AnkiConnect's `sync` action works too.
+
+Don't point `ANKIWEB_COLLECTION` at the sync server's own data directory. The web app needs its
+own collection and has to go through the sync protocol.
 
 ### API docs (Swagger)
 
