@@ -220,6 +220,10 @@ def build_media_router(get_service: Callable) -> APIRouter:
             return PlainTextResponse("forbidden", status_code=403)
         if not target.is_file():
             return PlainTextResponse("not found", status_code=404)
-        return FileResponse(target, media_type=_mime(path))
+        # fork: the browser may keep media for a day (the reviewer's audio prefetch relies on
+        # cheap repeats); "private" keeps CDNs like Cloudflare from caching the user's files,
+        # which would serve them to anyone without a login.
+        return FileResponse(target, media_type=_mime(path),
+                            headers={"Cache-Control": "private, max-age=86400"})
 
     return router

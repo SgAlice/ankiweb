@@ -43,9 +43,12 @@ def test_question_autoplays_and_renders_buttons(client):
     client.portal.call(client.app.state.service.run, lambda col: col.decks.set_current(did))
     with client.websocket_connect("/ws?context=reviewer") as ws:
         ws.send_json({"type": "cmd", "id": None, "ctx": "reviewer", "arg": "show"})
-        calls = _calls(ws, 3)   # _showQuestion + ankiwebSetAnswerBar + ankiwebPlayAudio
+        # _showQuestion + ankiwebSetAnswerBar + ankiwebPlayAudio + ankiwebPrefetchAudio
+        calls = _calls(ws, 4)
         assert "ankiwebPlayAudio" in calls
         assert calls["ankiwebPlayAudio"][0] == [["hello.mp3"]]
+        # fork: the current card's answer audio is prefetched while the question is shown
+        assert calls["ankiwebPrefetchAudio"][0] == [["bye.mp3"]]
         q_html = calls["_showQuestion"][0][0]
         assert "[anki:play" not in q_html
         assert "play:q:0" in q_html and "replay-button" in q_html
@@ -56,7 +59,7 @@ def test_answer_autoplays_and_play_and_replay(client):
     client.portal.call(client.app.state.service.run, lambda col: col.decks.set_current(did))
     with client.websocket_connect("/ws?context=reviewer") as ws:
         ws.send_json({"type": "cmd", "id": None, "ctx": "reviewer", "arg": "show"})
-        _calls(ws, 3)
+        _calls(ws, 4)
         ws.send_json({"type": "cmd", "id": None, "ctx": "reviewer", "arg": "ans"})
         calls = _calls(ws, 3)   # _showAnswer + ease bar + ankiwebPlayAudio
         assert "ankiwebPlayAudio" in calls

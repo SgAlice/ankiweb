@@ -128,6 +128,7 @@ All settings have safe localhost defaults; override via environment variables:
 | `ANKIWEB_SYNC_INTERVAL` | `600` | Seconds between background syncs (`0` = only on startup / on demand). |
 | `ANKIWEB_SYNC_DEBOUNCE` | `60` | Auto-sync this many seconds after the last local change (`0` = off). |
 | `ANKIWEB_ANSWER_BUTTONS` | `1,3` | Which answer buttons the reviewer shows (1 Again, 2 Hard, 3 Good, 4 Easy). Keyboard shortcuts follow it. The fork defaults to Again + Good; use `1,2,3,4` for all four. |
+| `ANKIWEB_AUDIO_PREFETCH` | `5` | How many upcoming cards' audio the reviewer downloads ahead of time (0–20). |
 | `ANKIWEB_SESSION_DAYS` | `90` | How long a login stays valid. |
 | `ANKIWEB_SOURCE_URL` | *(empty)* | AGPL §13 Corresponding-Source location for this deployment, shown on the `/about` page (only relevant if you run it as a public network service). |
 

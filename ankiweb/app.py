@@ -136,6 +136,25 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
 
     app.add_middleware(BaseHTTPMiddleware, dispatch=auth_guard)
 
+    # Fork: never let a shared cache (Cloudflare etc.) store the user's data. Only Anki's own
+    # vendored frontend files are public; everything else is marked private.
+    _PUBLIC_PREFIXES = ("/_anki/", "/_app/", "/shell/", "/_ankiweb/")
+
+    async def cache_guard(request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.startswith(_PUBLIC_PREFIXES) or path in OPEN_PATHS:
+            return response
+        cc = response.headers.get("cache-control", "")
+        if not cc:
+            response.headers["Cache-Control"] = "private, no-cache"
+        elif "private" not in cc and "no-store" not in cc:
+            response.headers["Cache-Control"] = "private, " + cc.replace("public, ", "").replace("public", "")
+        return response
+
+    # added last = outermost, so it also covers the auth redirects
+    app.add_middleware(BaseHTTPMiddleware, dispatch=cache_guard)
+
     # --- specific routes FIRST, media catch-all LAST (Starlette matches in order) ---
     @app.get("/healthz")
     def healthz():

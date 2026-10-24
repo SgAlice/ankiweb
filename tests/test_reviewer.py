@@ -101,7 +101,7 @@ def test_reviewer_body_registers_audio_player():
     from ankiweb.screens.reviewer import reviewer_page_body
     body = reviewer_page_body()
     assert "ankiwebPlayAudio" in body
-    assert "Audio(" in body or "new Audio" in body
+    assert "new Audio()" in body and "ankiwebPrefetchAudio" in body
 
 
 def test_reviewer_body_has_shortcuts_guarded():

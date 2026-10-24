@@ -1,6 +1,7 @@
 from __future__ import annotations
 import html as _html
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import os as _os
 from anki.sound import SoundOrVideoTag, AV_REF_RE
 from ankiweb.i18n import tr
 from ankiweb.screens import theme as _theme
@@ -42,6 +43,58 @@ class ReviewerSession:
     type_font: str = "Arial"
     type_size: int = 20
     typed_answer: str = ""          # the user's typed value, set by the "typed:" command
+    # fork: card id -> (question audio, answer audio), so prefetching doesn't re-render cards
+    av_cache: dict = field(default_factory=dict)
+
+
+# Fork: audio prefetch. After each question the browser is told which audio files the next
+# PREFETCH cards will need (plus the current card's answer audio) and downloads them in the
+# background, so playback never waits on the network.
+_AUDIO_EXTS = {"mp3", "ogg", "oga", "opus", "wav", "flac", "m4a", "aac", "spx", "amr"}
+
+
+def prefetch_cards() -> int:
+    try:
+        return max(0, min(20, int(_os.environ.get("ANKIWEB_AUDIO_PREFETCH", "5"))))
+    except ValueError:
+        return 5
+
+
+def _is_audio(fname: str) -> bool:
+    return fname.rsplit(".", 1)[-1].lower() in _AUDIO_EXTS if "." in fname else False
+
+
+def _card_audio(col, session: "ReviewerSession", cid: int) -> tuple[list, list]:
+    hit = session.av_cache.get(cid)
+    if hit is None:
+        card = col.get_card(cid)
+        hit = ([f for f in av_sound_filenames(card, True) if _is_audio(f)],
+               [f for f in av_sound_filenames(card, False) if _is_audio(f)])
+        if len(session.av_cache) > 300:
+            session.av_cache.clear()
+        session.av_cache[cid] = hit
+    return hit
+
+
+def upcoming_audio(col, session: "ReviewerSession", n: int | None = None) -> list[str]:
+    """Audio to prefetch, in the order it will be needed: the current card's answer side, then
+    question+answer audio of the next `n` queued cards. Duplicates removed."""
+    n = prefetch_cards() if n is None else n
+    out: list[str] = []
+    cur = session.card.id if session.card is not None else None
+    if cur is not None:
+        out += _card_audio(col, session, cur)[1]
+    if n:
+        seen_cards = 0
+        for qc in col.sched.get_queued_cards(fetch_limit=n + 1).cards:
+            if qc.card.id == cur:
+                continue
+            q, a = _card_audio(col, session, qc.card.id)
+            out += q + a
+            seen_cards += 1
+            if seen_cards >= n:
+                break
+    return list(dict.fromkeys(out))
 
 
 def load_question(col, session: ReviewerSession) -> dict | None:
@@ -160,6 +213,48 @@ def reviewer_actions_bar() -> str:
             "this.classList.remove('open')\">" + "".join(parts) + "</div>")
 
 
+# Fork: reviewer audio. One shared <audio> element (iOS lets an element play programmatically
+# once a user gesture has started it, so it is "unlocked" on the first tap/key) and an in-memory
+# LRU of downloaded files as Blob URLs. prefetch() downloads in the background, at most 3 at a
+# time; play() uses the cached copy, or fetches on demand if it isn't there yet.
+REVIEWER_AUDIO_JS = (
+    "<script>(function(){"
+    "var MAX=60,PAR=3,cache=new Map(),queue=[],active=0,gen=0;"
+    "var player=new Audio();player.preload='auto';"
+    "var SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';"
+    "function url(f){return '/'+encodeURIComponent(f);}"
+    "function evict(){while(cache.size>MAX){var k=cache.keys().next().value,p=cache.get(k);cache.delete(k);"
+    "p.then(function(u){URL.revokeObjectURL(u);},function(){});}}"
+    "function load(f){var p=cache.get(f);"
+    "if(p){cache.delete(f);cache.set(f,p);return p;}"  # LRU touch
+    "p=fetch(url(f),{credentials:'same-origin'}).then(function(r){if(!r.ok)throw new Error(r.status);"
+    "return r.blob();}).then(function(b){return URL.createObjectURL(b);});"
+    "p.catch(function(){if(cache.get(f)===p)cache.delete(f);});"
+    "cache.set(f,p);evict();return p;}"
+    "function pump(){while(active<PAR&&queue.length){var f=queue.shift();if(cache.has(f))continue;"
+    "active++;load(f).then(done,done);}}"
+    "function done(){active--;pump();}"
+    "function prefetch(files){(files||[]).forEach(function(f){if(!cache.has(f)&&queue.indexOf(f)<0)queue.push(f);});pump();}"
+    "function play(files){var g=++gen;files=files||[];var i=0;"
+    "try{player.pause();}catch(e){}"
+    "files.forEach(load);"  # current audio first in line
+    "function next(){if(g!==gen||i>=files.length)return;var f=files[i++];"
+    "load(f).then(function(u){return u;},function(){return url(f);}).then(function(u){if(g!==gen)return;"
+    "player.onended=next;player.onerror=next;player.src=u;"
+    "var r=player.play();if(r&&r.catch)r.catch(function(){});});}"
+    "next();}"
+    "function stop(){gen++;try{player.pause();}catch(e){}}"
+    "function unlock(){document.removeEventListener('touchend',unlock,true);"
+    "document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);"
+    "if(!player.paused)return;player.onended=null;player.onerror=null;player.src=SILENT;"
+    "var r=player.play();if(r&&r.catch)r.catch(function(){});}"
+    "document.addEventListener('touchend',unlock,true);document.addEventListener('click',unlock,true);"
+    "document.addEventListener('keydown',unlock,true);"
+    "window.__ankiwebAudio={play:play,prefetch:prefetch,stop:stop,cache:cache};"
+    "})();</script>"
+)
+
+
 def reviewer_page_body() -> str:
     """The reviewer DOM shell + inline script that registers the JS calls the server
     pushes (_showQuestion/_showAnswer from reviewer.js; ankiwebSetAnswerBar for our bar)
@@ -175,23 +270,13 @@ def reviewer_page_body() -> str:
         + _theme.icon("more") + "</button>"
         f"<a id='rev-back' href='/deckbrowser' aria-label='{_html.escape(tr.actions_decks())}'>"
         + _theme.icon("back") + "</a>"
-        + reviewer_actions_bar() +
+        + reviewer_actions_bar()
+        + REVIEWER_AUDIO_JS +
         "<script>(function(){"
         f"var _eases={list(visible_eases())};"
         "var b=window.__ankiwebBridge;"
-        "var _ankiAudio=null;"
+        "var _audio=window.__ankiwebAudio;"
         "var _side='question';"
-        "function ankiwebPlayAudio(files){"
-        "if(_ankiAudio){try{_ankiAudio.pause();}catch(e){} _ankiAudio=null;}"
-        "files=files||[]; var i=0;"
-        "function next(){"
-        "if(i>=files.length)return;"
-        "_ankiAudio=new Audio('/'+encodeURIComponent(files[i])); i++;"
-        "_ankiAudio.addEventListener('ended',next);"
-        "var p=_ankiAudio.play(); if(p&&p.catch){p.catch(function(){});}"
-        "}"
-        "next();"
-        "}"
         "function ankiwebShowAnswer(){"
         "  var ta=document.getElementById('typeans');"
         "  if(ta&&ta.tagName==='INPUT'){window.pycmd('typed:'+ta.value);}"
@@ -223,7 +308,8 @@ def reviewer_page_body() -> str:
         "return window._showAnswer.call(window,a,bodyclass===undefined?bodyclass:_nightClass(bodyclass));},"
         "ankiwebSetAnswerBar:function(h){"
         "document.getElementById('ankiweb-answer').innerHTML=String(h);},"
-        "ankiwebPlayAudio:function(files){return ankiwebPlayAudio(files);},"
+        "ankiwebPlayAudio:function(files){return _audio.play(files);},"
+        "ankiwebPrefetchAudio:function(files){return _audio.prefetch(files);},"
         "_drawMark:function(b){return window._drawMark&&window._drawMark(b);},"
         "_drawFlag:function(n){return window._drawFlag&&window._drawFlag(n);},"
         "ankiwebReviewerError:function(m){alert(m);}"
@@ -271,6 +357,10 @@ def make_reviewer_handler(service, hub):
             lambda col: av_sound_filenames(session.card, True) if session.card.autoplay() else [])
         if q_files:
             await hub.push_call("reviewer", "ankiwebPlayAudio", [q_files])
+        # after the current audio is on its way: warm the cache for what comes next
+        upcoming = await service.run(lambda col: upcoming_audio(col, session))
+        if upcoming:
+            await hub.push_call("reviewer", "ankiwebPrefetchAudio", [upcoming])
 
     async def handler(arg: str):
         if arg == "show":
