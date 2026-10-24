@@ -1,6 +1,12 @@
 import threading
 import time
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _all_four_buttons(monkeypatch):
+    # these flows rate Easy; the fork shows only Again/Good unless configured
+    monkeypatch.setenv("ANKIWEB_ANSWER_BUTTONS", "1,2,3,4")
 import uvicorn
 from pathlib import Path
 from anki.collection import Collection

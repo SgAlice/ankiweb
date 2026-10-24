@@ -59,8 +59,18 @@ def test_show_answer_bar():
     assert "ankiwebShowAnswer()" in html
 
 
-def test_ease_buttons_bar():
+def test_ease_buttons_bar_default_again_good(monkeypatch):
+    from ankiweb.screens.reviewer import ease_buttons_bar, reviewer_page_body
+    monkeypatch.delenv("ANKIWEB_ANSWER_BUTTONS", raising=False)
+    html = ease_buttons_bar(["<1m", "<6m", "<10m", "3d"])
+    assert "pycmd('ease1')" in html and "pycmd('ease3')" in html
+    assert "pycmd('ease2')" not in html and "pycmd('ease4')" not in html
+    assert "var _eases=[1, 3]" in reviewer_page_body()
+
+
+def test_ease_buttons_bar(monkeypatch):
     from ankiweb.screens.reviewer import ease_buttons_bar
+    monkeypatch.setenv("ANKIWEB_ANSWER_BUTTONS", "1,2,3,4")
     html = ease_buttons_bar(["<1m", "<6m", "<10m", "3d"])
     for name in ("Again", "Hard", "Good", "Easy"):
         assert name in html

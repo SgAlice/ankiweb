@@ -98,10 +98,23 @@ def show_answer_bar() -> str:
             f"onclick=\"ankiwebShowAnswer()\">{tr.studying_show_answer()}</button>")
 
 
+def visible_eases() -> tuple[int, ...]:
+    """Fork: which answer buttons to show. ANKIWEB_ANSWER_BUTTONS, e.g. "1,2,3,4"; the default
+    is Again + Good only. Read per call so it follows the environment."""
+    import os
+    raw = os.environ.get("ANKIWEB_ANSWER_BUTTONS", "1,3")
+    eases = tuple(sorted({int(x) for x in raw.replace(" ", "").split(",")
+                          if x.isdigit() and 1 <= int(x) <= 4}))
+    return eases or (1, 3)
+
+
 def ease_buttons_bar(labels) -> str:
     """labels: 4 interval strings in order [Again, Hard, Good, Easy]."""
     cells = []
+    shown = visible_eases()
     for i, name in enumerate(_ease_names(), start=1):
+        if i not in shown:
+            continue
         label = _html.escape(labels[i - 1]) if i - 1 < len(labels) else ""
         cells.append(
             f"<button class='ease' data-ease='{i}' onclick=\"pycmd('ease{i}')\">"
@@ -160,6 +173,7 @@ def reviewer_page_body() -> str:
         "onclick=\"document.getElementById('rev-actions').classList.toggle('open')\">⋯</button>"
         + reviewer_actions_bar() +
         "<script>(function(){"
+        f"var _eases={list(visible_eases())};"
         "var b=window.__ankiwebBridge;"
         "var _ankiAudio=null;"
         "var _side='question';"
@@ -208,7 +222,7 @@ def reviewer_page_body() -> str:
         "  if(e.ctrlKey&&(k==='1'||k==='2'||k==='3'||k==='4')){e.preventDefault();window.pycmd('setflag:'+k);return;}"
         "  if(e.ctrlKey||e.metaKey||e.altKey)return;"
         "  if(k===' '||k==='Enter'){e.preventDefault();if(_side==='question'){window.ankiwebShowAnswer();}else{window.pycmd('ease3');}}"
-        "  else if(_side==='answer'&&(k==='1'||k==='2'||k==='3'||k==='4')){e.preventDefault();window.pycmd('ease'+k);}"
+        "  else if(_side==='answer'&&_eases.indexOf(Number(k))>=0){e.preventDefault();window.pycmd('ease'+k);}"
         "  else if(k==='r'||k==='R'||k==='F5'){e.preventDefault();window.pycmd('replay');}"
         "  else if(k==='e'||k==='E'){e.preventDefault();window.pycmd('edit');}"
         "  else if(k==='*'){e.preventDefault();window.pycmd('mark');}"

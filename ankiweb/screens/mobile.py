@@ -90,7 +90,7 @@ CSS = (
     "border-top:1px solid #ccc;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}"
     "#ankiweb-answer,#ankiweb-answer *{box-sizing:border-box}"
     "#ankiweb-answer .ansbut{width:100%;height:56px;font-size:19px;border-radius:12px;margin:0}"
-    "#ankiweb-answer .ease-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}"
+    "#ankiweb-answer .ease-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;width:100%}"
     "#ankiweb-answer .ease{min-width:0;width:100%;margin:0;height:60px;justify-content:center;border-radius:12px;"
     "font-size:17px;padding:4px}"
     "#ankiweb-answer .ease-ivl{font-size:13px}"
