@@ -5,6 +5,8 @@
 > - **Anki 26.x** (pinned `anki==26.9.3`; see `UPSTREAM.md` → *26.x port notes*)
 > - **Sync** with an Anki sync server (self-hosted `anki.syncserver` or AnkiWeb). The web app
 >   becomes one more sync client next to desktop/mobile Anki. See **Sync** below.
+> - **Hardened password login** for exposing it behind HTTPS. See **Password**.
+> - **Phone layout + Add to Home Screen** (iOS/Android). See **On a phone**.
 
 > ⚠️ **Unofficial, personal, single-user project — not affiliated with Anki/Ankitects.**
 > This is an independent, community browser port of [Anki](https://apps.ankiweb.net),
@@ -211,6 +213,21 @@ ANKIWEB_SYNC_ENDPOINT=http://127.0.0.1:8090/ ANKIWEB_SYNC_USER=me ANKIWEB_SYNC_P
 
 Don't point `ANKIWEB_COLLECTION` at the sync server's own data directory. The web app needs its
 own collection and has to go through the sync protocol.
+
+### On a phone
+
+Fork addition. At phone widths (≤ 760px) the server-rendered screens switch to a touch layout:
+- a swipeable toolbar under the notch
+- big Show Answer / Again / Hard / Good / Easy buttons pinned to the bottom of the reviewer, with
+  the card actions (bury, suspend, flag, undo, …) behind a **⋯** button
+- a stacked Browser with the deck/tag sidebar behind a toggle
+- 16px inputs, so iOS doesn't zoom in when you tap a field
+
+Night mode follows the system appearance until you toggle 🌙 by hand.
+
+**Add to Home Screen:** in Safari, tap Share → *Add to Home Screen*. The app then opens full screen
+with its own icon. The manifest and icons are public. Everything else stays behind the login, and
+the home-screen app keeps its own login cookie (log in once there).
 
 ### API docs (Swagger)
 

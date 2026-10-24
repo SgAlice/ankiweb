@@ -26,7 +26,8 @@ from pathlib import Path
 COOKIE = "ankiweb_auth"
 # Paths reachable without a session cookie even when a password is set.
 OPEN_PATHS = frozenset({"/login", "/logout", "/healthz", "/manifest.webmanifest",
-                        "/ankiweb-icon.png", "/apple-touch-icon.png"})
+                        "/ankiweb-icon.png", "/apple-touch-icon.png",
+                        "/apple-touch-icon-precomposed.png"})
 DEFAULT_SESSION_DAYS = 90
 
 

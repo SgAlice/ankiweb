@@ -20,8 +20,8 @@ def _login_html(error: bool = False, blocked: bool = False) -> str:
                "Too many attempts, try again later</p>")
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>ankiweb</title><style>"
+        + mobile.HEAD +
+        "<title>Anki</title><style>"
         "body{font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:flex;"
         "align-items:center;justify-content:center;background:#f0f0f0}"
         "form{background:#fff;padding:28px 34px;border-radius:10px;text-align:center;"
@@ -42,6 +42,11 @@ from ankiweb.bridge.ws import build_router as build_ws_router
 from ankiweb.screens.routes import build_screen_router, register_screen_handlers
 from ankiweb.notifier import NotifierState
 from ankiweb.sync import SyncManager
+from ankiweb.screens import mobile
+from pathlib import Path
+from starlette.responses import FileResponse, JSONResponse
+
+_STATIC = Path(__file__).parent / "static"
 
 
 def create_app(settings: Settings | None = None, service: CollectionService | None = None,
@@ -117,6 +122,22 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
+
+    # fork: PWA manifest + icons (reachable before login so "Add to Home Screen" works)
+    @app.get("/manifest.webmanifest")
+    def webmanifest():
+        return JSONResponse(mobile.manifest(), media_type="application/manifest+json")
+
+    @app.get("/ankiweb-icon.png")
+    def app_icon():
+        return FileResponse(_STATIC / "ankiweb-icon.png", media_type="image/png",
+                            headers={"Cache-Control": "max-age=86400"})
+
+    @app.get("/apple-touch-icon.png")
+    @app.get("/apple-touch-icon-precomposed.png")
+    def apple_icon():
+        return FileResponse(_STATIC / "apple-touch-icon.png", media_type="image/png",
+                            headers={"Cache-Control": "max-age=86400"})
 
     @app.get("/login", response_class=HTMLResponse)
     def login_form():

@@ -142,7 +142,8 @@ def reviewer_actions_bar() -> str:
                                  label=_html.escape(f"⚑ {lbl(key, fb)}")))
     parts.append(btn.format(onclick="pycmd('setflag:0')",
                             label=_html.escape(lbl("browsing_no_flag", "No Flag"))))
-    return "<div id='rev-actions'>" + "".join(parts) + "</div>"
+    return ("<div id='rev-actions' onclick=\"if(event.target.tagName==='BUTTON')"
+            "this.classList.remove('open')\">" + "".join(parts) + "</div>")
 
 
 def reviewer_page_body() -> str:
@@ -154,6 +155,9 @@ def reviewer_page_body() -> str:
         "<div id='_flag' hidden>⚑</div>"
         "<div id='qa' dir='auto'></div>"
         "<div id='ankiweb-answer'></div>"
+        # fork: phones hide the action bar behind this button (see screens/mobile.py)
+        "<button type='button' id='rev-more' aria-label='More' "
+        "onclick=\"document.getElementById('rev-actions').classList.toggle('open')\">⋯</button>"
         + reviewer_actions_bar() +
         "<script>(function(){"
         "var b=window.__ankiwebBridge;"

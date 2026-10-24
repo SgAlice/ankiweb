@@ -61,6 +61,10 @@ def render_browser_html(col, query: str = "") -> str:
         f"value=\"{html.escape(query, quote=True)}\" "
         "onkeydown=\"if(event.key==='Enter'){window.pycmd('search:'+this.value);}\">"
         "<span id='browser-status'></span>"
+        # fork: phones hide the deck/tag sidebar behind this toggle (see screens/mobile.py)
+        "<button id='aw-side-toggle' style='display:none' "
+        "onclick=\"document.getElementById('browser').classList.toggle('aw-side')\">"
+        f"{tr.actions_decks()} / {tr.editing_tags()}</button>"
         "<div id='browser-actions'>"
         f"<button onclick=\"ankiwebAct('suspend')\">{tr.studying_suspend()}</button>"
         "<button onclick=\"ankiwebAct('unsuspend')\">Unsuspend</button>"

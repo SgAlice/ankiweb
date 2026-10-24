@@ -4,6 +4,7 @@ from typing import Sequence
 
 from ankiweb.i18n import tr
 from ankiweb.screens.sync_page import toolbar_sync_html
+from ankiweb.screens import mobile
 
 # Base dark theme for the server-rendered screens. bootstrap.js adds the
 # `night-mode` class to <html> when the persisted preference (or #night hash) is set.
@@ -58,9 +59,9 @@ def _toolbar_html() -> str:
         f"<a href='/preferences'>{tr.preferences_preferences()}</a>"
         # qt_accel_tools is "&Tools" (menu accelerator); strip the & for a clean label.
         f"<a href='/tools'>{tr.qt_accel_tools().replace('&', '')}</a>"
-        "<a href='/about' title='Source code (AGPL)'>Source</a>"
+        "<a href='/about' class='aw-wide' title='Source code (AGPL)'>Source</a>"
         # ankiweb-original features (beyond the Anki/AnkiConnect port) live under "Extras".
-        "<div class='menu'><span class='lbl' title='ankiweb extras'>Extras ▾</span>"
+        "<div class='menu aw-wide'><span class='lbl' title='ankiweb extras'>Extras ▾</span>"
         "<div class='sub'><a href='/notify'>Push notifications</a></div></div>"
         "<button class='nm' onclick='ankiwebToggleNight()' title='Toggle night mode'>\U0001F319</button>"
         "</div>"
@@ -90,11 +91,13 @@ def render_page(
     bar_html = _toolbar_html() if toolbar else ""
     return (
         "<!doctype html>\n"
-        '<html><head><meta charset="utf-8">'
+        f'<html{mobile.html_attrs(context)}><head><meta charset="utf-8">'
+        f"{mobile.HEAD}"
         f"<script>window.__ankiwebContext={json.dumps(context)}</script>"
         f"{_NIGHT_CSS}"
         f"{bar_css}"
         f"{links}"
+        f"{mobile.CSS if toolbar else ''}"
         f"{scripts}"
         '<script src="/shell/static/bootstrap.js"></script>'
         "</head>"

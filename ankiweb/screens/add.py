@@ -2,7 +2,8 @@ from __future__ import annotations
 import html
 import json
 from ankiweb.i18n import tr
-from ankiweb.screens.editor import _munge, paste_handler_js, editor_links_js
+from ankiweb.screens.editor import (_munge, paste_handler_js, editor_links_js, field_meta,
+                                    FIELD_META_JS)
 from ankiweb.ankiconnect.actions._helpers import check_addable
 from ankiweb.collection_service import op_changes_to_flags
 
@@ -28,6 +29,7 @@ def _empty_load(col, ntid: int) -> dict:
         "noteId": 0,
         "meta": {"id": model["id"], "modTime": model.get("mod", 0)},
         "tags": [],
+        "fieldMeta": field_meta(col, model),
     }
 
 
@@ -74,8 +76,11 @@ def add_page_body(deck_opts: str, nt_opts: str) -> str:
         "window.ankiwebAddNote=function(){window.pycmd('addnote:'+JSON.stringify(readAllFields()));};"
         "b.registerCalls({"
         "ankiwebLoadNote:function(d){require('anki/ui').loaded.then(function(){"
-        "window.setFields(d.fields.map(function(f){return f[0];}),d.fields.map(function(f){return f[1];}));window.setIsImageOcclusion(d.io);window.setFonts(d.fonts);"
-        "window.setNotetypeMeta(d.meta);window.setNoteId(d.noteId);window.setTags(d.tags);"
+        "window.setFields(d.fields.map(function(f){return f[0];}),d.fields.map(function(f){return f[1];}));window.setIsImageOcclusion(d.io);"
+        "window.setNotetypeMeta(d.meta);"
+        + FIELD_META_JS +
+        "window.setFonts(d.fonts);"
+        "window.setNoteId(d.noteId);window.setTags(d.tags);"
         "window.triggerChanges();});},"
         "ankiwebToast:function(m){var t=document.getElementById('add-toast');if(t){"
         "t.textContent=String(m);setTimeout(function(){t.textContent='';},2000);}}"

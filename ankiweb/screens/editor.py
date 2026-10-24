@@ -10,6 +10,27 @@ def _munge(col, html: str) -> str:
     return col.media.escape_media_filenames(html, unescape=True)
 
 
+def field_meta(col, model) -> dict:
+    """Per-field editor state that aqt's loadNote also sends (editor_legacy.py). Anki 26's
+    editor.js shows "undefined" placeholders when descriptions are never set."""
+    flds = model["flds"]
+    cloze_ords = set(col.models.cloze_fields(model["id"]))
+    return {
+        "collapsed": [bool(f.get("collapsed", False)) for f in flds],
+        "cloze": [i in cloze_ords for i in range(len(flds))],
+        "plain": [bool(f.get("plainText", False)) for f in flds],
+        "descriptions": [f.get("description", "") or "" for f in flds],
+    }
+
+
+# JS applying field_meta(); run right after setFields (same order as aqt)
+FIELD_META_JS = (
+    "if(d.fieldMeta){window.setCollapsed(d.fieldMeta.collapsed);"
+    "window.setClozeFields(d.fieldMeta.cloze);window.setPlainTexts(d.fieldMeta.plain);"
+    "window.setDescriptions(d.fieldMeta.descriptions);}"
+)
+
+
 def _build_load(col, nid: int) -> dict:
     note = col.get_note(nid)
     model = note.note_type()
@@ -23,6 +44,7 @@ def _build_load(col, nid: int) -> dict:
         "noteId": nid,
         "meta": {"id": model["id"], "modTime": model.get("mod", 0)},
         "tags": list(note.tags),
+        "fieldMeta": field_meta(col, model),
     }
 
 
@@ -90,8 +112,9 @@ def editor_page_body(nid: int) -> str:
         "require('anki/ui').loaded.then(function(){"
         "window.setFields(d.fields.map(function(f){return f[0];}),d.fields.map(function(f){return f[1];}));"
         "window.setIsImageOcclusion(d.io);"
-        "window.setFonts(d.fonts);"
         "window.setNotetypeMeta(d.meta);"
+        + FIELD_META_JS +
+        "window.setFonts(d.fonts);"
         "window.__ankiwebNotetypeId=d.meta.id;"
         "window.setNoteId(d.noteId);"
         "window.setTags(d.tags);"

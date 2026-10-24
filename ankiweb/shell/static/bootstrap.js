@@ -78,7 +78,11 @@
     "/image-occlusion"
   ];
   function nightOn() {
-    return location.hash.includes("night") || localStorage.getItem("ankiweb-night") === "1";
+    if (location.hash.includes("night")) return true;
+    const stored = localStorage.getItem("ankiweb-night");
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   }
   function withNight(url) {
     if (!nightOn() || url.includes("#")) return url;
@@ -167,8 +171,7 @@
     });
   });
   window.ankiwebToggleNight = () => {
-    const on = localStorage.getItem("ankiweb-night") === "1";
-    localStorage.setItem("ankiweb-night", on ? "0" : "1");
+    localStorage.setItem("ankiweb-night", nightOn() ? "0" : "1");
     location.reload();
   };
   window.addEventListener("load", () => bridge.ready());
