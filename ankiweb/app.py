@@ -146,6 +146,8 @@ def create_app(settings: Settings | None = None, service: CollectionService | No
         if path.startswith(_PUBLIC_PREFIXES) or path in OPEN_PATHS:
             return response
         cc = response.headers.get("cache-control", "")
+        if "public" in cc and response.status_code == 200:
+            return response  # explicitly public (ANKIWEB_PUBLIC_MEDIA), never a redirect/error
         if not cc:
             response.headers["Cache-Control"] = "private, no-cache"
         elif "private" not in cc and "no-store" not in cc:

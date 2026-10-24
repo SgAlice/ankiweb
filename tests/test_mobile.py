@@ -63,3 +63,26 @@ def test_user_content_is_never_publicly_cacheable(tmp_path: Path):
         assert r.status_code == 303 and "private" in r.headers["cache-control"]
         # Anki's vendored frontend stays publicly cacheable
         assert "private" not in c.get("/_anki/js/reviewer.js").headers.get("cache-control", "")
+
+
+def test_public_media_exts_opt_in(tmp_path: Path):
+    """ANKIWEB_PUBLIC_MEDIA lets a CDN cache e.g. audio; everything else stays private, and the
+    login redirect for those files stays private (a cached redirect would lock the user out)."""
+    app = create_app(Settings(collection_path=tmp_path / "c.anki2", password="pw",
+                              public_media_exts=("mp3",)))
+    with TestClient(app) as c:
+        media = Path(c.portal.call(c.app.state.service.run, lambda col: col.media.dir()))
+        (media / "word.mp3").write_bytes(b"\x00" * 10)
+        (media / "pic.jpg").write_bytes(b"\xff\xd8")
+        r = c.get("/word.mp3", follow_redirects=False)
+        assert r.status_code == 303 and "private" in r.headers["cache-control"]
+        c.post("/login", data={"password": "pw"})
+        assert c.get("/word.mp3").headers["cache-control"] == "public, max-age=604800"
+        assert c.get("/pic.jpg").headers["cache-control"] == "private, max-age=86400"
+        assert c.get("/missing.mp3").headers["cache-control"].startswith("private")
+
+
+def test_public_media_from_env(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("ANKIWEB_COLLECTION", str(tmp_path / "c.anki2"))
+    monkeypatch.setenv("ANKIWEB_PUBLIC_MEDIA", "mp3, .OGG ,m4a")
+    assert Settings.from_env().public_media_exts == ("mp3", "ogg", "m4a")

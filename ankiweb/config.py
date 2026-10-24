@@ -43,6 +43,9 @@ class Settings:
     # Optional web-UI password. Empty = no gate (open, the default). When set, the web app
     # requires a /login session cookie; the AnkiConnect server keeps its own apiKey.
     password: str = ""
+    # Fork: media file extensions a CDN may cache publicly (e.g. word audio). Default: none, so
+    # every media file is private. Cached files are served by the CDN without a login.
+    public_media_exts: tuple = ()
     # Fork: how long a login stays valid (days). Changing the password logs everyone out.
     session_days: int = 90
     # Fork: sync with an Anki sync server (self-hosted or AnkiWeb). Disabled unless configured.
@@ -62,5 +65,8 @@ class Settings:
             lang=os.environ.get("ANKIWEB_LANG", ""),
             password=os.environ.get("ANKIWEB_PASSWORD", ""),
             session_days=int(os.environ.get("ANKIWEB_SESSION_DAYS", "90") or 90),
+            public_media_exts=tuple(
+                e.strip().lower().lstrip(".")
+                for e in os.environ.get("ANKIWEB_PUBLIC_MEDIA", "").split(",") if e.strip()),
             sync=SyncConfig.from_env(),
         )
