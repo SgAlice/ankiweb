@@ -84,11 +84,11 @@ def editor_page_body(nid: int) -> str:
     return (
         f"<script>window.__ankiwebEditNid={int(nid)}</script>"
         "<script>(function(){"
-        "window.setupEditor('browse');"
+        "window.setupEditor('browser',true);"
         "var b=window.__ankiwebBridge;"
         "b.registerCalls({ankiwebLoadNote:function(d){"
         "require('anki/ui').loaded.then(function(){"
-        "window.setFields(d.fields);"
+        "window.setFields(d.fields.map(function(f){return f[0];}),d.fields.map(function(f){return f[1];}));"
         "window.setIsImageOcclusion(d.io);"
         "window.setFonts(d.fonts);"
         "window.setNotetypeMeta(d.meta);"

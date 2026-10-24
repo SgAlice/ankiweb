@@ -6,13 +6,25 @@ can diff against these points and decide whether ankiweb needs to follow.
 
 ## Runtime dependency — the source of truth for behavior
 
-- **anki (pylib) + the vendored frontend: `25.9.4`** — pinned in `pyproject.toml` as `anki==25.9.4`.
-- The compiled frontend under `ankiweb/web_assets/` (gitignored) is vendored from the **aqt `25.9.4`**
+- **anki (pylib) + the vendored frontend: `26.9.3`** (fork: SgAlice/ankiweb; was 25.9.4 upstream) — pinned in `pyproject.toml` as `anki==26.9.3`.
+- The compiled frontend under `ankiweb/web_assets/` (gitignored) is vendored from the **aqt `26.9.3`**
   wheel by `tools/fetch_web_assets.py`.
 
 > **The version pin is load-bearing.** `_rsbridge.so` and the compiled frontend carry a *buildhash*
 > that must match (`anki.buildinfo`). So `anki`, `aqt`, and the vendored `web_assets/` must all be the
 > **same** version — bumping one means re-vendoring the others.
+
+## 26.x port notes (fork)
+
+Changes needed when moving 25.9.4 -> 26.9.3:
+- **Editor:** aqt 26 moved the old editor to `editor_legacy.py`. The legacy `editor.js` API changed:
+  `setupEditor(mode, isLegacy)` with mode in `add|browser|current` (`browse` now alerts), and
+  `setFields(names, values)` instead of `setFields([[name, value], ...])`.
+  `setupMaskEditor` was renamed `setupMaskEditorWithOptions`.
+- **SvelteKit CSP:** `sveltekit/index.html` now has a `<meta http-equiv=content-security-policy
+  script-src 'self' 'sha256-…'>`. Inline injected scripts are blocked, so the graphs bridge is
+  served as `/_ankiweb/spa-bridge.js`. Playwright string predicates need `bypass_csp=True` on those pages.
+- **i18n:** `tr.custom_study_cards()` / `tr.custom_study_cards_from_the_deck()` now require `count`.
 
 ## Reference source repos (read-only, used while porting)
 

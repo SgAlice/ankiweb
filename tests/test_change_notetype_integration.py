@@ -42,7 +42,7 @@ def test_change_notetype_spa_boots(live_server_cnt):
     url, old = live_server_cnt
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page()
+        page = browser.new_page(bypass_csp=True)  # Anki 26 SPA ships a CSP meta that blocks Playwright string eval
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("requestfailed",

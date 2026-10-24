@@ -56,7 +56,7 @@ card-template editors (one of the Tools-menu screens ankiweb rebuilds for the we
 ## Requirements
 
 - Python **3.12**
-- `anki==25.9.4` (pinned — the vendored frontend must match this version; the exact upstream
+- `anki==26.9.3` (pinned — the vendored frontend must match this version; the exact upstream
   Anki/AnkiConnect commits this port was built against are recorded in [UPSTREAM.md](UPSTREAM.md))
 - Node.js (only to build the ~2 KB shell bundle)
 - A conda env is recommended: installing `anki` pulls a newer `protobuf` that can clash
@@ -68,7 +68,7 @@ card-template editors (one of the Tools-menu screens ankiweb rebuilds for the we
 conda create -n ankiweb python=3.12 -y
 conda run -n ankiweb pip install -e ".[dev]"
 
-# 1. Vendor Anki's compiled frontend (downloads the aqt 25.9.4 wheel, extracts
+# 1. Vendor Anki's compiled frontend (downloads the aqt 26.9.3 wheel, extracts
 #    _aqt/data/web/ into ankiweb/web_assets/ — gitignored). Required.
 conda run -n ankiweb python tools/fetch_web_assets.py
 
@@ -317,7 +317,7 @@ the GPL-3.0 text covering the AnkiConnect-derived code is in
 Because ankiweb is a network service, every user interacting with it over a network is
 entitled to its Corresponding Source. The running app exposes a **Source** link (the top
 toolbar → `/about`). Set **`ANKIWEB_SOURCE_URL`** to where your deployed source lives so that
-link points at the exact running version; the pinned Anki/aqt 25.9.4 source is at
+link points at the exact running version; the pinned Anki/aqt 26.9.3 source is at
 <https://github.com/ankitects/anki> and AnkiConnect at <https://github.com/FooSoft/anki-connect>.
 
 Copyright (C) 2026 tsc. Anki © Ankitects Pty Ltd and contributors. AnkiConnect © 2016–2021

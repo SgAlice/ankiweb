@@ -8,11 +8,16 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 # (e.g. graphs count-links) opens ankiweb's browser instead of being a no-op. The SPA has no
 # pycmd host otherwise; this defines a minimal one before the app modules load. Other bridge
 # commands are intentionally ignored (same as before).
-_SPA_BRIDGE = (
-    "<script>window.pycmd=window.bridgeCommand=function(c){try{"
+_SPA_BRIDGE_JS = (
+    "window.pycmd=window.bridgeCommand=function(c){try{"
     "if(typeof c==='string'&&c.indexOf('browserSearch:')===0){"
-    "location.href='/browse?q='+encodeURIComponent(c.slice(14));}}catch(e){}};</script>"
+    "location.href='/browse?q='+encodeURIComponent(c.slice(14));}}catch(e){}};"
 )
+# Anki 26.x ships the SvelteKit index.html with a CSP meta (script-src 'self' + a hash for its
+# own inline boot script), so an injected *inline* script is blocked. Load it as a same-origin
+# classic script instead: it runs synchronously in <head>, before the deferred module scripts.
+_SPA_BRIDGE_PATH = "/_ankiweb/spa-bridge.js"
+_SPA_BRIDGE = f"<script src='{_SPA_BRIDGE_PATH}'></script>"
 
 # subset of mediasrv _mime_for_path (mediasrv.py:171-210)
 MIME = {
@@ -109,6 +114,10 @@ def build_sveltekit_router(assets_dir: Path) -> APIRouter:
     def _shell_with_bridge() -> str:
         html = index.read_text(encoding="utf-8")
         return html.replace("<head>", "<head>" + _SPA_BRIDGE, 1)
+
+    @router.get(_SPA_BRIDGE_PATH)
+    def spa_bridge_js() -> Response:
+        return Response(_SPA_BRIDGE_JS, media_type="application/javascript")
 
     @router.get("/graphs")
     def graphs_page() -> Response:

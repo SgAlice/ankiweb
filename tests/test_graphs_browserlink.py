@@ -17,9 +17,12 @@ def test_graphs_shell_injects_browsersearch_bridge(client):
     assert r.headers["content-type"].startswith("text/html")
     # SPA still boots
     assert "_app/immutable/entry" in r.text
-    # bridge present + maps browserSearch -> /browse?q=
-    assert "browserSearch:" in r.text
-    assert "/browse?q=" in r.text
+    # bridge loaded as an external same-origin script (inline is blocked by the SPA's CSP)
+    assert "/_ankiweb/spa-bridge.js" in r.text
+    js = client.get("/_ankiweb/spa-bridge.js")
+    assert js.status_code == 200
+    assert "browserSearch:" in js.text
+    assert "/browse?q=" in js.text
 
 
 def test_browse_q_prefills_and_searches(client):
