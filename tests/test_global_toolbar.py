@@ -11,7 +11,8 @@ def test_render_page_includes_toolbar_by_default():
     assert "id='ankiweb-toolbar'" in html
     for label, href in [("Decks", "/deckbrowser"), ("Add", "/add"),
                         ("Browse", "/browse"), ("Stats", "/graphs")]:
-        assert f"href='{href}'>{label}<" in html
+        # fork: nav entries are icon + label
+        assert f"href='{href}'" in html and f"<span class='aw-tab-l'>{label}</span>" in html
 
 
 def test_render_page_toolbar_can_be_disabled():

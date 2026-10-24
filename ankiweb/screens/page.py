@@ -3,7 +3,8 @@ import json
 from typing import Sequence
 
 from ankiweb.i18n import tr
-from ankiweb.screens.sync_page import toolbar_sync_html
+from ankiweb.screens.sync_page import sync_button_html, sync_script
+from ankiweb.screens import theme
 from ankiweb.screens import mobile
 
 # Base dark theme for the server-rendered screens. bootstrap.js adds the
@@ -19,53 +20,8 @@ _NIGHT_CSS = (
     "</style>"
 )
 
-# Always-present top toolbar (Anki's main-window Decks/Add/Browse/Stats, minus Sync).
-# Fixed at the top of every server-rendered screen; the body gets matching padding.
-_TOOLBAR_CSS = (
-    "<style>"
-    "#ankiweb-toolbar{position:fixed;top:0;left:0;right:0;height:34px;display:flex;"
-    "gap:16px;align-items:center;padding:0 12px;background:#f0f0f0;"
-    "border-bottom:1px solid #ccc;z-index:2000;font-size:14px;}"
-    "#ankiweb-toolbar a{text-decoration:none;color:#333;}"
-    "#ankiweb-toolbar a:hover{text-decoration:underline;}"
-    "#ankiweb-toolbar .nm{margin-left:auto;border:0;background:transparent;"
-    "cursor:pointer;font-size:16px;}"
-    # "Extras" CSS-only dropdown (ankiweb-original features, separate from the Anki port).
-    "#ankiweb-toolbar .menu{position:relative;}"
-    "#ankiweb-toolbar .menu>.lbl{cursor:default;color:#333;}"
-    "#ankiweb-toolbar .menu .sub{display:none;position:absolute;top:100%;left:0;"
-    "background:#f0f0f0;border:1px solid #ccc;min-width:170px;flex-direction:column;"
-    "padding:4px 0;box-shadow:0 2px 6px rgba(0,0,0,.15);}"
-    "#ankiweb-toolbar .menu:hover .sub{display:flex;}"
-    "#ankiweb-toolbar .menu .sub a{padding:5px 14px;white-space:nowrap;}"
-    "html.night-mode #ankiweb-toolbar{background:#1e1e1e;border-color:#444;}"
-    "html.night-mode #ankiweb-toolbar a{color:#ccc;}"
-    "html.night-mode #ankiweb-toolbar .menu>.lbl{color:#ccc;}"
-    "html.night-mode #ankiweb-toolbar .menu .sub{background:#1e1e1e;border-color:#444;}"
-    "body{padding-top:42px;}"
-    "</style>"
-)
-def _toolbar_html() -> str:
-    """Built per request so the labels reflect the active language (a module-level
-    constant would freeze to the import-time locale). "Source" + the title= tooltips
-    + the 🌙 emoji are ankiweb-specific (keyless) and stay English."""
-    return (
-        "<div id='ankiweb-toolbar'>"
-        f"<a href='/deckbrowser'>{tr.actions_decks()}</a>"
-        f"<a href='/add'>{tr.actions_add()}</a>"
-        f"<a href='/browse'>{tr.qt_misc_browse()}</a>"
-        f"<a href='/graphs'>{tr.qt_misc_stats()}</a>"
-        + toolbar_sync_html() +
-        f"<a href='/preferences'>{tr.preferences_preferences()}</a>"
-        # qt_accel_tools is "&Tools" (menu accelerator); strip the & for a clean label.
-        f"<a href='/tools'>{tr.qt_accel_tools().replace('&', '')}</a>"
-        "<a href='/about' class='aw-wide' title='Source code (AGPL)'>Source</a>"
-        # ankiweb-original features (beyond the Anki/AnkiConnect port) live under "Extras".
-        "<div class='menu aw-wide'><span class='lbl' title='ankiweb extras'>Extras ▾</span>"
-        "<div class='sub'><a href='/notify'>Push notifications</a></div></div>"
-        "<button class='nm' onclick='ankiwebToggleNight()' title='Toggle night mode'>\U0001F319</button>"
-        "</div>"
-    )
+# Fork: the nav bar and all screen styling live in screens/theme.py.
+_WIDE = {"browser", "reviewer"}
 
 
 def render_page(
@@ -87,19 +43,23 @@ def render_page(
     """
     links = "".join(f'<link rel="stylesheet" href="/_anki/{c}">' for c in css_files)
     scripts = "".join(f'<script src="/_anki/{j}"></script>' for j in js_files)
-    bar_css = _TOOLBAR_CSS if toolbar else ""
-    bar_html = _toolbar_html() if toolbar else ""
+    if toolbar:
+        css = theme.CSS
+        main_cls = "aw-main aw-wide-main" if context in _WIDE else "aw-main"
+        page_body = (theme.nav_html(context, sync_button_html())
+                     + f"<main class='{main_cls}'>{body}</main>" + sync_script())
+    else:  # embedded fragment (editor iframe): Anki's own styling + the basic night colors
+        css = _NIGHT_CSS
+        page_body = body
     return (
         "<!doctype html>\n"
         f'<html{mobile.html_attrs(context)}><head><meta charset="utf-8">'
         f"{mobile.HEAD}"
         f"<script>window.__ankiwebContext={json.dumps(context)}</script>"
-        f"{_NIGHT_CSS}"
-        f"{bar_css}"
         f"{links}"
-        f"{mobile.CSS if toolbar else ''}"
+        f"{css}"
         f"{scripts}"
         '<script src="/shell/static/bootstrap.js"></script>'
         "</head>"
-        f"<body>{bar_html}{body}</body></html>"
+        f"<body>{page_body}</body></html>"
     )

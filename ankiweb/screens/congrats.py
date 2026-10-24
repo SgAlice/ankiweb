@@ -8,7 +8,8 @@ def render_congrats_html(col) -> str:
     info = col.sched.congratulations_info()
     # scheduling_congratulations_finished is one combined sentence ("Congratulations! You have
     # finished this deck for now."); render it whole so it localizes.
-    lines = [f"<h1>{html.escape(tr.scheduling_congratulations_finished())}</h1>"]
+    lines = ["<div class='aw-emoji'>🎉</div>",
+             f"<h1>{html.escape(tr.scheduling_congratulations_finished())}</h1>"]
     if info.learn_remaining:
         # Keyless (documented): scheduling_next_learn_due needs bidi-isolate chars + a localized
         # unit word — disproportionate for this simplified secondary line.
@@ -17,5 +18,6 @@ def render_congrats_html(col) -> str:
     if info.have_user_buried or info.have_sched_buried:
         lines.append(f"<p><button onclick='pycmd(\"unbury\")'>{tr.studying_unbury()}</button> "
                      "buried cards.</p>")
-    back = "<p><button onclick='pycmd(\"decks\")'>Back to Decks</button></p>"
-    return "<center class='congrats'>" + "".join(lines) + back + "</center>"
+    back = ("<p><button class='aw-primary' onclick='pycmd(\"decks\")'>"
+            f"{html.escape(tr.actions_decks())}</button></p>")
+    return "<div class='aw-card aw-hero congrats'>" + "".join(lines) + back + "</div>"

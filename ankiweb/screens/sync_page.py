@@ -112,28 +112,37 @@ def render_sync_html(mgr) -> str:
     )
 
 
-def toolbar_sync_html() -> str:
-    """Toolbar button: tap = sync now (stays on the page, reloads if data was pulled);
-    a dot shows the state (green ok, orange unsynced changes, red error / needs a choice)."""
+def sync_button_html(extra_cls: str = "") -> str:
+    """A sync button (icon + label + status dot). Several may exist on one page (nav, the phone
+    "More" sheet, the deck list header); sync_script() drives all of them by class."""
+    from ankiweb.screens.theme import icon
     label = html.escape(tr.qt_misc_sync())
+    cls = f"aw-sync-btn {extra_cls}".strip()
+    return (f"<a href='/sync' class='{cls}' onclick='return ankiwebSync(event)'>{icon('sync')}"
+            f"<span class='aw-sync-l'>{label}</span><span class='aw-sync-dot'></span></a>")
+
+
+def sync_script() -> str:
+    """Tap = sync now (stays on the page, reloads if data was pulled). The dot shows the state:
+    green ok, orange unsynced local changes, blue syncing, red error / needs a choice."""
     syncing = json.dumps(tr.sync_syncing())
     return (
-        f"<a href='/sync' id='aw-sync-btn' onclick='return ankiwebSync(event)'>{label}"
-        "<span id='aw-sync-dot' style='display:inline-block;width:7px;height:7px;border-radius:50%;"
-        "margin-left:4px;vertical-align:middle;background:transparent'></span></a>"
         "<script>(function(){"
-        "function paint(s){var d=document.getElementById('aw-sync-dot');if(!d||!s)return;"
-        "if(s.enabled===false){document.getElementById('aw-sync-btn').style.display='none';return;}"
-        "var c=s.state==='error'||s.state==='conflict'?'#c0392b':s.state==='syncing'?'#2d7dd2':"
-        "s.local_changes?'#e67e22':'#27ae60';d.style.background=c;"
-        "d.title=s.state+(s.last_error?': '+s.last_error:'');}"
+        "function all(sel){return Array.prototype.slice.call(document.querySelectorAll(sel));}"
+        "function paint(s){if(!s)return;"
+        "if(s.enabled===false){all('.aw-sync-btn').forEach(function(a){a.style.display='none';});return;}"
+        "var c=s.state==='error'||s.state==='conflict'?'var(--aw-danger)':s.state==='syncing'?'var(--aw-accent)':"
+        "s.local_changes?'#f59e0b':'var(--aw-review)';"
+        "all('.aw-sync-dot').forEach(function(d){d.style.background=c;d.title=s.state+(s.last_error?': '+s.last_error:'');});"
+        "all('.aw-sync-btn').forEach(function(a){a.classList.toggle('spinning',s.state==='syncing');});}"
         "window.ankiwebSync=function(ev){if(ev&&(ev.metaKey||ev.ctrlKey))return true;"
-        "var a=document.getElementById('aw-sync-btn');var old=a.firstChild.textContent;"
-        f"a.firstChild.textContent={syncing};paint({{enabled:true,state:'syncing'}});"
+        "var labels=all('.aw-sync-l');var old=labels.map(function(l){return l.textContent;});"
+        f"labels.forEach(function(l){{l.textContent={syncing};}});paint({{enabled:true,state:'syncing'}});"
+        "function restore(){labels.forEach(function(l,i){l.textContent=old[i];});}"
         "fetch('/sync',{method:'POST'}).then(function(r){return r.json();}).then(function(s){"
-        "a.firstChild.textContent=old;paint(s);"
+        "restore();paint(s);"
         "if(s.state==='conflict'||s.state==='error'){location.href='/sync';return;}"
-        "if(s.changed)location.reload();}).catch(function(){a.firstChild.textContent=old;"
+        "if(s.changed)location.reload();}).catch(function(){restore();"
         "paint({enabled:true,state:'error'});});return false;};"
         "fetch('/sync/status').then(function(r){return r.json();}).then(paint).catch(function(){});"
         "})();</script>"

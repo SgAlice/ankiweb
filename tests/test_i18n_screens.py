@@ -14,8 +14,8 @@ from ankiweb.screens.custom_study import render_custom_study_html
 
 def test_toolbar_default_english():
     html = render_page("deckbrowser", "<div>x</div>")
-    assert ">Decks</a>" in html and ">Add</a>" in html
-    assert ">Browse</a>" in html and ">Stats</a>" in html
+    assert ">Decks</span></a>" in html and ">Add</span></a>" in html
+    assert ">Browse</span></a>" in html and ">Stats</span></a>" in html
     assert ">Source</a>" in html  # keyless, stays English
 
 

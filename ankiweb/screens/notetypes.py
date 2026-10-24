@@ -47,7 +47,7 @@ def render_notetypes_html(col) -> str:
     body = f"""
 <div class='notetypes'>
   <h3>{H}</h3>
-  <table id='nttbl' border='1' cellpadding='6' cellspacing='0'>
+  <table id='nttbl'>
     <tbody id='ntrows'>{rows_html}</tbody>
   </table>
   <div id='ntadd' style='margin-top:16px;'>

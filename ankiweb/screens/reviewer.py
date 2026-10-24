@@ -3,6 +3,7 @@ import html as _html
 from dataclasses import dataclass
 from anki.sound import SoundOrVideoTag, AV_REF_RE
 from ankiweb.i18n import tr
+from ankiweb.screens import theme as _theme
 
 
 def render_av_buttons(text: str) -> str:
@@ -170,7 +171,10 @@ def reviewer_page_body() -> str:
         "<div id='ankiweb-answer'></div>"
         # fork: phones hide the action bar behind this button (see screens/mobile.py)
         "<button type='button' id='rev-more' aria-label='More' "
-        "onclick=\"document.getElementById('rev-actions').classList.toggle('open')\">⋯</button>"
+        "onclick=\"document.getElementById('rev-actions').classList.toggle('open')\">"
+        + _theme.icon("more") + "</button>"
+        f"<a id='rev-back' href='/deckbrowser' aria-label='{_html.escape(tr.actions_decks())}'>"
+        + _theme.icon("back") + "</a>"
         + reviewer_actions_bar() +
         "<script>(function(){"
         f"var _eases={list(visible_eases())};"
@@ -205,9 +209,13 @@ def reviewer_page_body() -> str:
         "  if(window.confirm('Delete this note?')){window.pycmd('deletenote');}"
         "}"
         "window.ankiwebDeleteNote=ankiwebDeleteNote;"
+        # fork: like desktop Anki, give the card body the nightMode/night_mode classes so note
+        # types' own night styles apply (reviewer.js resets body.className for every card)
+        "function _night(){if(document.documentElement.classList.contains('night-mode'))"
+        "{document.body.classList.add('nightMode','night_mode');}}"
         "b.registerCalls({"
-        "_showQuestion:function(){_side='question';return window._showQuestion.apply(window,arguments);},"
-        "_showAnswer:function(){_side='answer';return window._showAnswer.apply(window,arguments);},"
+        "_showQuestion:function(){_side='question';var r=window._showQuestion.apply(window,arguments);_night();return r;},"
+        "_showAnswer:function(){_side='answer';var r=window._showAnswer.apply(window,arguments);_night();return r;},"
         "ankiwebSetAnswerBar:function(h){"
         "document.getElementById('ankiweb-answer').innerHTML=String(h);},"
         "ankiwebPlayAudio:function(files){return ankiwebPlayAudio(files);},"

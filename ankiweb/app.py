@@ -14,26 +14,44 @@ from ankiweb.auth import (COOKIE, OPEN_PATHS, Authenticator, LoginLimiter, clien
 
 def _login_html(error: bool = False, blocked: bool = False) -> str:
     """Self-contained login page (no /_anki assets, so it works before authentication)."""
-    err = "<p style='color:#c0392b;margin:0 0 12px'>密码错误 / Wrong password</p>" if error else ""
+    err = ""
+    if error:
+        err = "<p class='err'>密码错误 / Wrong password</p>"
     if blocked:
-        err = ("<p style='color:#c0392b;margin:0 0 12px'>尝试次数过多，请稍后再试<br>"
-               "Too many attempts, try again later</p>")
+        err = "<p class='err'>尝试次数过多，请稍后再试<br>Too many attempts, try again later</p>"
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         + mobile.HEAD +
         "<title>Anki</title><style>"
-        "body{font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:flex;"
-        "align-items:center;justify-content:center;background:#f0f0f0}"
-        "form{background:#fff;padding:28px 34px;border-radius:10px;text-align:center;"
-        "box-shadow:0 2px 10px rgba(0,0,0,.12)}h1{font-size:18px;margin:0 0 18px}"
-        "input{font-size:16px;padding:9px 10px;width:220px;box-sizing:border-box}"
-        "button{font-size:16px;padding:9px 22px;margin-top:14px;cursor:pointer;"
-        "border:0;border-radius:6px;background:#2d7dd2;color:#fff}</style></head><body>"
-        "<form method='post' action='/login'><h1>ankiweb</h1>"
+        ":root{--bg:#f4f5f7;--card:#fff;--text:#18191c;--muted:#6b7079;--border:#d3d6dc;--accent:#2f6fec}"
+        "@media (prefers-color-scheme:dark){:root{--bg:#111214;--card:#1b1c1f;--text:#ececef;"
+        "--muted:#9a9ea7;--border:#3a3d43;--accent:#5b8ef1}}"
+        "*{box-sizing:border-box}"
+        "body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;"
+        "font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Segoe UI',Roboto,sans-serif;"
+        "background:var(--bg);color:var(--text);padding:24px}"
+        "form{width:100%;max-width:340px;background:var(--card);padding:32px 28px 28px;border-radius:20px;"
+        "text-align:center;box-shadow:0 1px 2px rgba(16,24,40,.05),0 12px 40px rgba(16,24,40,.10)}"
+        "img{width:64px;height:64px;border-radius:16px;box-shadow:0 6px 18px rgba(47,111,236,.35)}"
+        "h1{font-size:22px;margin:16px 0 4px;letter-spacing:-.01em}"
+        "p.sub{margin:0 0 22px;color:var(--muted);font-size:14px}"
+        "input{font:inherit;font-size:16px;width:100%;padding:12px 14px;border-radius:12px;"
+        "border:1px solid var(--border);background:transparent;color:var(--text);outline:none}"
+        "input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}"
+        "button{font:inherit;font-size:16px;font-weight:600;width:100%;padding:12px;margin-top:12px;"
+        "border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer}"
+        "button:hover{filter:brightness(1.07)}"
+        ".err{color:#e5484d;margin:0 0 12px;font-size:14px}"
+        "</style></head><body>"
+        "<form method='post' action='/login'><img src='/apple-touch-icon.png' alt=''>"
+        "<h1>Anki</h1><p class='sub'>输入密码继续 / Enter password</p>"
         f"{err}"
-        "<input type='password' name='password' autofocus placeholder='密码 / Password'><br>"
+        "<input type='password' name='password' autofocus autocomplete='current-password' "
+        "placeholder='密码 / Password'>"
         "<button type='submit'>进入 / Enter</button></form></body></html>"
     )
+
+
 from ankiweb.collection_service import CollectionService
 from ankiweb.bridge.hub import BridgeHub
 from ankiweb.assets import build_router as build_assets_router, build_media_router, build_sveltekit_router

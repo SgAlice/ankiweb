@@ -123,7 +123,7 @@ async def test_deleteunused_no_files_is_noop(tmp_path: Path):
 
 def test_toolbar_has_tools_link():
     html = render_page("deckbrowser", "x")
-    assert "href='/tools'>Tools<" in html
+    assert "href='/tools'" in html and ">Tools</span>" in html
 
 
 @pytest.fixture

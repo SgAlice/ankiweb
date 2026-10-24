@@ -2,6 +2,8 @@ from __future__ import annotations
 import html
 
 from ankiweb.i18n import tr
+from ankiweb.screens import theme
+from ankiweb.screens.sync_page import sync_button_html
 
 
 def _count_span(n: int, cls: str) -> str:
@@ -9,7 +11,7 @@ def _count_span(n: int, cls: str) -> str:
 
 
 def _render_node(node, current_id: int, out: list) -> None:
-    indent = "&nbsp;" * 6 * (node.level - 1)
+    indent = f"<span class='aw-indent' style='--lvl:{node.level - 1}'></span>"
     row_class = "deck current" if node.deck_id == current_id else "deck"
     if node.children:
         prefix = "+" if node.collapsed else "−"  # − minus sign
@@ -20,8 +22,8 @@ def _render_node(node, current_id: int, out: list) -> None:
     filtered = " filtered" if node.filtered else ""
     name = (f"<a class='deck{filtered}' href='#' "
             f"onclick=\"return pycmd('open:{node.deck_id}')\">{html.escape(node.name)}</a>")
-    gears = (f"<a class='opts' href='#' onclick='return pycmd(\"opts:{node.deck_id}\")'>"
-             f"<img src='/_anki/imgs/gears.svg' class='gears'></a>")
+    gears = (f"<a class='opts' href='#' title='{html.escape(tr.actions_options())}' "
+             f"onclick='return pycmd(\"opts:{node.deck_id}\")'>{theme.icon('gear')}</a>")
     out.append(
         f"<tr class='{row_class}' id='{node.deck_id}'>"
         f"<td class='decktd'>{indent}{collapse}{name}</td>"
@@ -55,9 +57,11 @@ def render_deckbrowser_html(col) -> str:
     create = (f"<button onclick='ankiwebCreateDeck()'>{tr.decks_create_deck()}</button>"
               f" <button onclick='pycmd(\"createfiltered\")'>{tr.qt_misc_create_filtered_deck()}</button>"
               f" <button onclick='ankiwebImportFile()'>{tr.actions_import()}</button>"
-              f" <a href='/export'>{tr.actions_export()}</a>"
+              f" <a class='aw-btn' href='/export'>{tr.actions_export()}</a>"
               f" <button onclick='ankiwebImageOcclusion()'>{tr.notetypes_image_occlusion_name()}</button>")
-    return f"<center>{table}{studied}<div class='dyn-buttons'>{create}</div></center>"
+    # fork: page header; the sync button here is for phones (desktop has it in the nav bar)
+    head = theme.page_head(tr.actions_decks(), sync_button_html("aw-btn aw-phone-only"))
+    return f"{head}{table}{studied}<div class='dyn-buttons'>{create}</div>"
 
 
 def make_deckbrowser_handler(service, hub):

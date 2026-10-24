@@ -76,14 +76,17 @@ def render_overview_html(col) -> str:
         rendered = col.render_markdown(raw) if deck.get("md") else html.escape(raw)
         desc = f"<div class='descfont descmid description'>{rendered}</div>"
 
+    # fork: counts as stat tiles (was a bare table)
+    def tile(n, cls, label):
+        return (f"<div class='aw-stat'><div class='aw-stat-n {cls}'>{n}</div>"
+                f"<div class='aw-stat-l'>{label}</div></div>")
+
     table = (
-        "<table cellspacing='0' cellpadding='5' class='overview-counts'><tr>"
-        f"<th>{tr.statistics_counts_new_cards()}</th><th>{tr.statistics_counts_learning_cards()}</th>"
-        f"<th>{tr.studying_to_review()}</th></tr><tr>"
-        f"{_number_cell(new, 'new-count')}"
-        f"{_number_cell(learn, 'learn-count')}"
-        f"{_number_cell(review, 'review-count')}"
-        "</tr></table>"
+        "<div class='aw-stats overview-counts'>"
+        + tile(new, "new-count", tr.statistics_counts_new_cards())
+        + tile(learn, "learn-count", tr.statistics_counts_learning_cards())
+        + tile(review, "review-count", tr.studying_to_review())
+        + "</div>"
     )
     study = ("<button id='study' class='but' autofocus "
              f"onclick=\"pycmd('study');return false;\">{tr.studying_study_now()}</button>")
@@ -115,7 +118,7 @@ def render_overview_html(col) -> str:
     )
 
     return (
-        f"<center><h3>{name}</h3>{desc}{table}"
-        f"<div class='studybtn'>{study}</div>"
-        f"<div class='bottom-buttons'>{''.join(bottom)}</div>{descedit}</center>"
+        f"<div class='aw-card aw-hero'><h1>{name}</h1>{desc}{table}"
+        f"<div class='studybtn'>{study}</div></div>"
+        f"<div class='bottom-buttons'>{''.join(bottom)}</div>{descedit}"
     )

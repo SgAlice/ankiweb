@@ -7,6 +7,9 @@
 >   becomes one more sync client next to desktop/mobile Anki. See **Sync** below.
 > - **Hardened password login** for exposing it behind HTTPS. See **Password**.
 > - **Phone layout + Add to Home Screen** (iOS/Android). See **On a phone**.
+> - **Modern UI theme** for all of ankiweb's own screens (`ankiweb/screens/theme.py`): system font,
+>   cards, pill counts, icon navigation, light/dark tokens. Card templates and Anki's own SvelteKit
+>   pages keep their styling.
 
 > ⚠️ **Unofficial, personal, single-user project — not affiliated with Anki/Ankitects.**
 > This is an independent, community browser port of [Anki](https://apps.ankiweb.net),
@@ -218,7 +221,8 @@ own collection and has to go through the sync protocol.
 ### On a phone
 
 Fork addition. At phone widths (≤ 760px) the server-rendered screens switch to a touch layout:
-- a swipeable toolbar under the notch
+- a bottom tab bar (Decks / Add / Browse / Stats / More); the reviewer hides it (focus mode, with
+  a back button)
 - big Show Answer / Again / Hard / Good / Easy buttons pinned to the bottom of the reviewer, with
   the card actions (bury, suspend, flag, undo, …) behind a **⋯** button
 - a stacked Browser with the deck/tag sidebar behind a toggle
@@ -227,7 +231,7 @@ Fork addition. At phone widths (≤ 760px) the server-rendered screens switch to
 Night mode follows the system appearance until you toggle 🌙 by hand.
 
 **Add to Home Screen:** in Safari, tap Share → *Add to Home Screen*. The app then opens full screen
-with its own icon. The manifest and icons are public. Everything else stays behind the login, and
+with its own icon. Anki's own pages (stats, deck options, …) get a floating back button in that mode. The manifest and icons are public. Everything else stays behind the login, and
 the home-screen app keeps its own login cookie (log in once there).
 
 ### API docs (Swagger)

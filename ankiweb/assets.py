@@ -19,6 +19,27 @@ _SPA_BRIDGE_JS = (
 _SPA_BRIDGE_PATH = "/_ankiweb/spa-bridge.js"
 _SPA_BRIDGE = f"<script src='{_SPA_BRIDGE_PATH}'></script>"
 
+# Fork: a floating back button on the SvelteKit pages, shown only when running as a home-screen
+# app (display-mode: standalone), where there is no browser back button. The click handler is a
+# same-origin script because the pages' CSP blocks inline scripts.
+_PWA_BACK_PATH = "/_ankiweb/pwa-back.js"
+_PWA_BACK_JS = (
+    "document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('.aw-pwa-back');"
+    "if(!a)return;e.preventDefault();if(history.length>1)history.back();else location.href='/deckbrowser';});"
+)
+_PWA_BACK = (
+    "<style>.aw-pwa-back{display:none;position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));"
+    "z-index:9999;width:46px;height:46px;border-radius:23px;align-items:center;justify-content:center;"
+    "background:rgba(255,255,255,.85);border:1px solid rgba(0,0,0,.08);box-shadow:0 4px 16px rgba(0,0,0,.18);"
+    "-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#18191c;text-decoration:none}"
+    ".night-mode .aw-pwa-back,html[data-bs-theme=dark] .aw-pwa-back{background:rgba(40,41,45,.85);color:#ececef}"
+    "@media (display-mode: standalone){.aw-pwa-back{display:flex}}</style>"
+    "<a class='aw-pwa-back' href='/deckbrowser' aria-label='Back'>"
+    "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' "
+    "stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg></a>"
+    f"<script src='{_PWA_BACK_PATH}'></script>"
+)
+
 # subset of mediasrv _mime_for_path (mediasrv.py:171-210)
 MIME = {
     ".css": "text/css", ".js": "application/javascript", ".mjs": "application/javascript",
@@ -111,9 +132,21 @@ def build_sveltekit_router(assets_dir: Path) -> APIRouter:
     router = APIRouter()
     index = assets_dir / "sveltekit" / "index.html"
 
-    def _shell_with_bridge() -> str:
+    def _shell(bridge: bool = False) -> str:
         html = index.read_text(encoding="utf-8")
-        return html.replace("<head>", "<head>" + _SPA_BRIDGE, 1)
+        if bridge:
+            html = html.replace("<head>", "<head>" + _SPA_BRIDGE, 1)
+        return html.replace("</body>", _PWA_BACK + "</body>", 1)
+
+    def _shell_with_bridge() -> str:
+        return _shell(bridge=True)
+
+    def _page() -> Response:
+        return HTMLResponse(_shell())
+
+    @router.get(_PWA_BACK_PATH)
+    def pwa_back_js() -> Response:
+        return Response(_PWA_BACK_JS, media_type="application/javascript")
 
     @router.get(_SPA_BRIDGE_PATH)
     def spa_bridge_js() -> Response:
@@ -126,29 +159,29 @@ def build_sveltekit_router(assets_dir: Path) -> APIRouter:
 
     @router.get("/deck-options/{deck_id}")
     def deck_options_page(deck_id: str) -> Response:
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/change-notetype/{ids:path}")
     def change_notetype_page(ids: str) -> Response:
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/card-info/{ids:path}")
     def card_info_page(ids: str) -> Response:
         # SvelteKit route nodes: /card-info/[cardId] and /card-info/[cardId]/[previousId].
         # Bundle is vendored; card_stats / get_review_logs are already PASSTHROUGH RPCs.
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/import-csv/{path:path}")
     def import_csv_page(path: str) -> Response:
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/import-anki-package/{path:path}")
     def import_anki_package_page(path: str) -> Response:
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/image-occlusion/{path:path}")
     def image_occlusion_page(path: str) -> Response:
-        return FileResponse(index, media_type="text/html")
+        return _page()
 
     @router.get("/_app/{path:path}")
     def app_asset(path: str) -> Response:
